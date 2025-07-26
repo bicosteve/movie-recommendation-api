@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from django.contrib.auth.hashers import make_password
-
+import re
 
 from accounts.models import CustomUser
 
@@ -10,37 +9,40 @@ class RegisterSerializer(serializers.ModelSerializer):
     RegisterSerializer is used to parse the registeration payload into pythonic data type.
     """
 
-    confirn_password = serializers.CharField(write_only=True)
+    username = serializers.CharField(max_length=100)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=1)
+    confirm_password = serializers.CharField(write_only=True, min_lenght=1)
 
-    class Meta:
-        model = CustomUser
-        fields = ["username", "email", "password", "confirm_password"]
-        exra_kwargs = {"password": {"write_only": True}}
+    def validate_email(self, value):
+        """Used to validate that the provide email take email format"""
 
-    def validate(self, data):
-        """
-        This method will be called when serializer.is_valid() is called.
-        It will be used to check passwords match, detect double username registration, and double email registration.
-        """
-        if data["password"] != data["confirm_password"]:
+        disposable_mails = ["mailinator.com", "tempmail.com", "10minuteemail.com"]
+        domain = value.split("@")[1]
+        if domain.lower() in disposable_mails:
+            raise serializers.ValidationError("Disposable mails not allowed")
+        return value
+
+    def validate_username(self, value):
+        """used to validate if provided username matches a regex"""
+        if not re.match(r"^[a-zA-Z0-9]+$", value):
             raise serializers.ValidationError(
-                {"err": "Password & confirm password do not match!"}
+                "Username can only contain numbers & letters"
             )
+        return value
 
-        if CustomUser.objects.filter(username=data["username"]).exists():
-            raise serializers.ValidationError({"err": "User already exists!"})
+    def validate_passwords(data):
+        """Used to validate if the provided passwords are equal and match"""
+        password = data.get("password")
+        confirm_password = data.get("confirm_password")
 
-        if CustomUser.objects.filter(email=data["email"]).exists():
-            raise serializers.ValidationError({"err": "email is already taken"})
+        if password != confirm_password:
+            raise serializers.ValidationError("Passwords must match")
         return data
 
-    def create(self, validated_data):
-        """
-        This method will be caleed when serializer.save() is called.
-        It will pop the confirm_password which is not stored in the table
-        It will hash the password
-        It will create a user on the CustomUser model
-        """
-        validated_data.pop("confirm_password")
-        validated_data["password"] = make_password(validated_data["password"])
-        return CustomUser.objects.create(**validated_data)
+
+class LoginSerializer(serializers.Serializer):
+    """Serializes the login data"""
+
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True)

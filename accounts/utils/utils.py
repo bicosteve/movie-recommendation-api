@@ -37,3 +37,14 @@ class Utils:
         )
 
         return is_success
+
+    def generate_jwt_token(self, user_id, email) -> str:
+        payload = {
+            "user_id": user_id,
+            "email": email,
+            "exp": datetime.datetime.now() + timedelta(hours=5),
+        }
+
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+        return token
