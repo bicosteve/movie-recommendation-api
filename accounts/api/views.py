@@ -7,12 +7,15 @@ from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 import jwt
 
 
 from .serializers import RegisterSerializer, LoginSerializer
 from accounts.models import CustomUser
 from accounts.utils.utils import Utils
+from accounts.utils.auth import JWTAuthentication
+from accounts.services.user import UserService
 
 
 # Create your views here.
@@ -31,48 +34,33 @@ class RegisterView(APIView):
         username = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
 
-        password_hash = make_password(password)
+        service = UserService()
 
-        with connection.cursor() as cursor:
-            # check if email is already registered
-            cursor.execute("SELECT 1 FROM users WHERE email = %s", [email])
-            if cursor.fetchone():
-                return Response(
-                    {"errr": "Email already taken"}, status=status.HTTP_400_BAD_REQUEST
-                )
+        is_registered = service.get_by_mail(email)
 
-            # check if username is already taken
-            cursor.execute("SELECT 1 FROM users WHERE username = %s", [username])
-            if cursor.fetchone():
-                return Response(
-                    {"errr": "Username already taken"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        # Register user
-
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO users (username,email,passowrd) VALUES (%s,%s,%s) RETURNING id;",
-                    [username, email, password_hash],
-                )
-
-                user_id = cursor.fetchone()[0]
-        except IntegrityError:
+        if is_registered:
             return Response(
-                {"err": "User already exists (race condition)"},
+                {"errr": "Email already taken"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        is_available = service.get_by_username(username)
+        if is_available:
+            return Response(
+                {"errr": "Username already taken"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
+
+        user_id = service.register_user(username, email, password)
+        if user_id < 1:
             return Response(
-                {"err": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"msg": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        user = {
-            user_id: user_id,
-            username: username,
-            email: email,
-        }
+
+        user = {}
+        user["user_id"] = user_id
+        user["username"] = username
+        user["email"] = email
 
         utils = Utils(user)
 
@@ -186,6 +174,54 @@ class LoginView(APIView):
 
             utils = Utils(user)
 
-            token = utils.generate_jwt_token(id, email)
+            access_tkn, refresh_tkn = utils.generate_tokens(id, email)
 
-        return Response({"token": token}, status=status.HTTP_200_OK)
+        return Response({"token": access_tkn}, status=status.HTTP_200_OK)
+
+
+class RefreshTokenView(APIView):
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+
+        try:
+            payload = jwt.decode(
+                refresh_token, settings.SECRET_KEY, algorithms=["HS256"]
+            )
+            if payload.get("type") != "refresh":
+                raise jwt.InvalidTokenError()
+        except jwt.ExpiredSignatureError:
+            return Response({"error": "Refresh token expired"}, status=403)
+        except jwt.InvalidTokenError:
+            return Response({"error": "Invalid refresh token"}, status=403)
+
+        user_id = payload.get("user_id")
+        email = payload.get("email")
+
+        # Check the token exists on refresh_token table
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT token FROM refresh_tokens WHERE user_id = %s", [user_id]
+            )
+            result = cursor.fetchone()
+
+            if not result or result[0] != refresh_token:
+                return Response({"error": "Invalid refresh token"}, status=403)
+
+        new_access_token, _ = Utils.generate_tokens(user_id, email)
+
+        return Response({"access": new_access_token})
+
+
+class LogoutView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user_id = user["id"]
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM refresh_tokens WHERE user_id = %s", [user_id])
+
+        return Response({"msg": "Logged out successfully"}, status=200)

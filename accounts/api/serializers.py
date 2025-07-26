@@ -1,10 +1,10 @@
 from rest_framework import serializers
 import re
 
-from accounts.models import CustomUser
+# from accounts.models import CustomUser
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(serializers.Serializer):
     """
     RegisterSerializer is used to parse the registeration payload into pythonic data type.
     """
@@ -12,7 +12,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(max_length=100)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=1)
-    confirm_password = serializers.CharField(write_only=True, min_lenght=1)
+    confirm_password = serializers.CharField(write_only=True, min_length=1)
 
     def validate_email(self, value):
         """Used to validate that the provide email take email format"""
