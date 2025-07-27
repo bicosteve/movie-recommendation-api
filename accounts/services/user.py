@@ -6,7 +6,6 @@ import jwt
 
 from accounts.repositories.user import UserRepository
 from accounts.utils.utils import Utils
-from accounts.utils.auth import JWTAuthentication
 from accounts.utils.logs import Logger
 
 logger = Logger()
