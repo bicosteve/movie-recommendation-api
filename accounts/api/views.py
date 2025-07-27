@@ -237,7 +237,4 @@ class LogoutView(APIView):
 
         service.logout(user_id)
 
-        # with connection.cursor() as cursor:
-        #     cursor.execute("DELETE FROM refresh_tokens WHERE user_id = %s", [user_id])
-
         return Response({"msg": "Logged out successfully"}, status=200)
