@@ -209,15 +209,14 @@ class RefreshTokenView(APIView):
 
             user_id = payload.get("user_id")
             email = payload.get("email")
-            username = payload.get("username")
 
             # Generate get refresh token
-            refresh_token = service.refresh_tkn(user_id)
+            access_tkn, refresh_tkn = service.regenerate_access_token(user_id, email)
 
             return Response(
                 {
                     "access_tkn": access_tkn,
-                    "refresh_tkn": refresh_token,
+                    "refresh_tkn": refresh_tkn,
                 },
                 status=200,
             )
@@ -236,7 +235,9 @@ class LogoutView(APIView):
         user = request.user
         user_id = user["id"]
 
-        with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM refresh_tokens WHERE user_id = %s", [user_id])
+        service.logout(user_id)
+
+        # with connection.cursor() as cursor:
+        #     cursor.execute("DELETE FROM refresh_tokens WHERE user_id = %s", [user_id])
 
         return Response({"msg": "Logged out successfully"}, status=200)

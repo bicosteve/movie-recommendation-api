@@ -15,7 +15,7 @@ class Utils:
             "user_id": self.user["user_id"],
             "email": self.user["email"],
             "username": self.user["username"],
-            "exp": datetime.now() + timedelta(hours=24),
+            "exp": datetime.now() + timedelta(hours=6),
             "type": "account_verification",
         }
 
@@ -43,7 +43,7 @@ class Utils:
         access_payload = {
             "user_id": user_id,
             "email": email,
-            "exp": int((datetime.now() + timedelta(hours=5)).timestamp()),
+            "exp": int((datetime.now() + timedelta(minutes=40)).timestamp()),
             "type": "access",
         }
 

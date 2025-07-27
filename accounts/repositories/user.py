@@ -99,3 +99,22 @@ class UserRepository:
         except Exception as e:
             logger.log_error(str(e))
             raise Exception(str(e))
+
+    def find_user_by_id_and_email(self, user_id, email):
+        q = """
+        SELECT id,email,username FROM users 
+        WHERE id =%s AND email = %s LIMIT 1
+        """
+        self.cursor.execute(q, [user_id, email])
+
+        row = self.cursor.fetchone()
+
+        user = {}
+
+        if row:
+            user["user_id"] = row[0]
+            user["email"] = row[1]
+            user["username"] = row[2]
+
+            return user
+        return None

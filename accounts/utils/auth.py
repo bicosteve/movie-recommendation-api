@@ -5,6 +5,10 @@ from django.db import connection
 from rest_framework import authentication, exceptions
 import jwt
 
+from accounts.services.user import UserService
+
+user_service = UserService()
+
 
 class JWTAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
@@ -16,7 +20,11 @@ class JWTAuthentication(authentication.BaseAuthentication):
         token = auth_header.split(" ")[1]
 
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=["HS256"],
+            )
         except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed("Token expired")
         except jwt.InvalidTokenError:
@@ -26,21 +34,9 @@ class JWTAuthentication(authentication.BaseAuthentication):
         email = payload.get("email")
         username = payload.get("username")
 
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM users WHERE id = %s AND email = %s", [user_id, email]
-            )
+        user = user_service.get_user(user_id, email)
 
-            user = cursor.fetchone()
+        if not user:
+            raise exceptions.AuthenticationFailed("User not found")
 
-            if not user:
-                raise exceptions.AuthenticationFailed("user not found")
-
-            return (
-                {
-                    "user_id": user_id,
-                    "email": email,
-                    "username": username,
-                },
-                None,
-            )
+        return ({"user": user}, None)

@@ -82,5 +82,16 @@ class UserService:
         refresh_tkn = self.user_repo.get_refresh_token(user_id)
         return refresh_tkn
 
+    def regenerate_access_token(self, user_id, email):
+        user = self.user_repo.login_user(email)
+        utils = Utils(user)
+        access_tkn, refresh_tkn = utils.generate_tokens(user_id, email)
+        self.save_refresh_tkn(refresh_tkn)
+        return access_tkn, refresh_tkn
+
+    def get_user(self, user_id, email):
+        user = self.user_repo.find_user_by_id_and_email(user_id, email)
+        return user
+
     def logout(self, user_id):
         self.user_repo.delete_token(user_id)
