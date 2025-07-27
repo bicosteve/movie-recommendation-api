@@ -15,15 +15,15 @@ class Utils:
             "user_id": self.user["user_id"],
             "email": self.user["email"],
             "username": self.user["username"],
-            "exp": datetime.datetime.now() + timedelta(hours=24),
-            "type": "email_verification",
+            "exp": datetime.now() + timedelta(hours=24),
+            "type": "account_verification",
         }
 
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
         return token
 
     def send_verification_mail(self, token) -> int:
-        verify_url = f"http://localhost:8000/user/verify-email/?token={token}"
+        verify_url = f"http://localhost:8000/user/verify-account/?token={token}"
         subject = "Account verification mail"
         msg = f"Hello, {self.user.username}, \n click this link {verify_url} to verify your account."
 
@@ -43,14 +43,14 @@ class Utils:
         access_payload = {
             "user_id": user_id,
             "email": email,
-            "exp": datetime.datetime.now() + timedelta(hours=5),
+            "exp": datetime.now() + timedelta(hours=5),
             "type": "access",
         }
 
         refresh_payload = {
             "user_id": user_id,
             "email": email,
-            "exp": datetime.datetime.now() + timedelta(days=7),
+            "exp": datetime.now() + timedelta(days=7),
             "type": "refresh",
         }
 
@@ -65,12 +65,5 @@ class Utils:
             settings.SECRET_KEY,
             algorithm="HS256",
         )
-
-        with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM refresh_tokens WHERE user_id = %s", [user_id])
-            cursor.execute(
-                "INSERT INTO refresh_tokens (user_id,token) VALUES (%s,%s)",
-                [user_id, refresh_token],
-            )
 
         return access_token, refresh_token

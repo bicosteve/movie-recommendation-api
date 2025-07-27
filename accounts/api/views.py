@@ -17,8 +17,9 @@ from accounts.utils.utils import Utils
 from accounts.utils.auth import JWTAuthentication
 from accounts.services.user import UserService
 
+service = UserService()
 
-# Create your views here.
+
 class RegisterView(APIView):
     def post(self, request):
         """Used to validate the incoming data"""
@@ -33,8 +34,6 @@ class RegisterView(APIView):
         email = serializer.validated_data["email"]
         username = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
-
-        service = UserService()
 
         is_registered = service.get_by_mail(email)
 
@@ -71,7 +70,7 @@ class RegisterView(APIView):
         return Response(
             {
                 "msg": "Registeration success",
-                "tkn": token,
+                "verification_tkn": token,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -88,41 +87,37 @@ class VerifyEmailView(APIView):
 
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            if payload.get("type") != "email_verification":
+            if payload.get("type") != "account_verification":
                 return Response(
                     {"error": "Invalid token type"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
+            email = payload.get("email")
             user_id = payload.get("user_id")
 
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT is_verified FROM users WHERE id = %s", [user_id])
+            is_verified = service.check_verified(email)
 
-                user = cursor.fetchone()
-
-                if not user:
-                    return Response(
-                        {"err": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                    )
-
-                if user.is_verified:
-                    return Response(
-                        {"msg": "account is already verified"},
-                        status=status.HTTP_200_OK,
-                    )
-                if user[0]:
-                    return Response(
-                        {"msg": "User already verified"}, status=status.HTTP_200_OK
-                    )
-
-                # Update the status of the user
-                cursor.execute(
-                    "UPDATE users SET is_verified = TRUE WHERE id = %s", [user_id]
-                )
-
+            # 1. Check if account is verified
+            if is_verified == 1:
                 return Response(
-                    {"msg": "Account successfully verified"}, status=status.HTTP_200_OK
+                    {"msg": "account is already verified"},
+                    status=status.HTTP_200_OK,
                 )
+
+            # 2. Update the status of the user
+            verified = service.verify(user_id)
+            if verified != 1:
+                return Response(
+                    {"msg": "User not verified"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            if verified == 1:
+                return Response(
+                    {"msg": "Account successfully verified"},
+                    status=status.HTTP_200_OK,
+                )
+
         except jwt.ExpiredSignatureError:
             return Response(
                 {"msg": "Verification link expired"}, status=status.HTTP_400_BAD_REQUEST
@@ -145,36 +140,44 @@ class LoginView(APIView):
         email = serializer.validated_data["email"]
         password = serializer.validated_data["password"]
 
-        with connection.cursor() as cursor:
-            q = """
-            SELECT id,username,email,is_verified,hashed_password 
-            FROM users WHERE email = %s
-            """
-            cursor.execute(q, [email])
-            user = cursor.fetchone()
+        # 1. Check if user exists
+        is_user = service.get_by_mail(email)
+        if not is_user:
+            return Response(
+                {"msg": "User not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-            if not user:
-                return Response(
-                    {"msg": "User not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        # 2. Check is user is verifed
+        is_verified = service.check_verified(email)
+        if not is_verified:
+            return Response(
+                {"msg": "Not verified user"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
-            id, username, email, is_verified, hashed_password = user
+        # 3. Login user
 
-            if not check_password(password, hashed_password):
-                return Response(
-                    {"err": "Invalid password or email"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        access_tkn, refresh_tkn = service.create_session(email, password)
 
-            if not is_verified:
-                return Response(
-                    {"err": "Not a verified user"}, status=status.HTTP_400_BAD_REQUEST
-                )
+        if access_tkn == "":
+            return Response(
+                {"msg": "ACCESS_TKN:an error occured while login in"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-            utils = Utils(user)
+        if refresh_tkn == "":
+            return Response(
+                {"msg": "REFRESH_TKN:an error occured while login in"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-            access_tkn, refresh_tkn = utils.generate_tokens(id, email)
+        # 4. Save refresh token
+        is_added = service.save_refresh_tkn(refresh_tkn)
+        if not is_added:
+            return Response(
+                {"msg": "REFRESH_TKN: not saved!"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response({"token": access_tkn}, status=status.HTTP_200_OK)
 

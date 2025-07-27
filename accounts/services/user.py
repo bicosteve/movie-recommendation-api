@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
+import jwt
 
 from accounts.repositories.user import UserRepository
 from accounts.utils.utils import Utils
@@ -11,24 +13,24 @@ class UserService:
 
     def get_by_mail(self, email) -> bool:
         user = self.user_repo.get_user_by_email(email)
-        if user:
-            return True
-        return False
+        if not user[0]:
+            return False
+        return True
 
     def get_by_username(self, username) -> bool:
         user = self.user_repo.get_user_by_username(username)
-        if not user:
+        if not user[0]:
             return False
         return True
 
-    def get_verified(self, user_id) -> bool:
-        user = self.user_repo.get_verified_user(user_id)
-        if not user:
+    def check_verified(self, email) -> bool:
+        is_verified = self.user_repo.get_verified_user(email)
+        if is_verified != 1:
             return False
         return True
 
-    def verify(self, user_id) -> bool:
-        verified = self.user_repo.verify_user(user_id)
+    def verify(self, email) -> bool:
+        verified = self.user_repo.verify_user(email)
         if verified != 1:
             return False
         return True
@@ -49,14 +51,25 @@ class UserService:
         if not check_password(password, hashed_password):
             return ""
 
-        if not is_verified:
-            return ""
-
         utils = Utils(user)
 
-        access_tkn, _ = utils.generate_tokens(id, email)
+        access_tkn, refresh_tkn = utils.generate_tokens(id, email)
 
-        return access_tkn
+        return access_tkn, refresh_tkn
+
+    def save_refresh_tkn(self, token):
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            if payload.get("type") != "refresh":
+                raise jwt.InvalidTokenError()
+            user_id = payload.get("user_id")
+            exp = payload.get("exp")
+        except jwt.ExpiredSignatureError:
+            raise jwt.ExpiredSignatureError
+        except jwt.InvalidTokenError:
+            raise jwt.InvalidTokenError
+
+        return self.user_repo.insert_refresh_token(user_id, token, exp)
 
     def refresh_tkn(self, user_id):
         refresh_tkn = self.user_repo.get_refresh_token(user_id)

@@ -1,4 +1,4 @@
-from django.db import connection
+from django.db import connection, transaction, IntegrityError, DatabaseError
 
 
 class UserRepository:
@@ -21,11 +21,11 @@ class UserRepository:
         user = self.cursor.fetchone()
         return user
 
-    def get_verified_user(self, user_id):
-        q = """SELECT is_verified FROM users WHERE id = %s"""
-        self.cursor.execute(q, [user_id])
-        user = self.cursor.fetchone()
-        return user
+    def get_verified_user(self, email):
+        q = """SELECT is_verified FROM users WHERE email = %s"""
+        self.cursor.execute(q, [email])
+        verified_user = self.cursor.fetchone()
+        return verified_user[0] if verified_user else None
 
     def verify_user(self, user_id):
         q = """
@@ -34,7 +34,7 @@ class UserRepository:
         """
         self.cursor.execute(q, [user_id])
         user = self.cursor.fetchone()
-        return user
+        return user[0]
 
     def create_user(self, username, email, password):
         q = """
@@ -71,3 +71,23 @@ class UserRepository:
     def delete_token(self, user_id):
         q = """DELETE FROM refresh_tokens WHERE user_id = %s"""
         self.cursor.execute(q, [user_id])
+
+    def insert_refresh_token(self, user_id, token, expires):
+        delete_q = """
+            DELETE FROM refresh_tokens WHERE user_id = %s
+        """
+        insert_q = """
+            INSERT INTO refresh_tokens (user_id, token, expires_at)
+            VALUES (%s,%s,%s)
+        """
+        try:
+            with transaction.atomic():
+                self.cursor.execute(delete_q, [user_id])
+                self.cursor.execute(insert_q, [user_id, token, expires])
+            return True
+        except IntegrityError as e:
+            return str(e)
+        except DatabaseError as e:
+            return str(e)
+        except Exception as e:
+            return str(e)
