@@ -43,14 +43,14 @@ class Utils:
         access_payload = {
             "user_id": user_id,
             "email": email,
-            "exp": datetime.now() + timedelta(hours=5),
+            "exp": int((datetime.now() + timedelta(hours=5)).timestamp()),
             "type": "access",
         }
 
         refresh_payload = {
             "user_id": user_id,
             "email": email,
-            "exp": datetime.now() + timedelta(days=7),
+            "exp": int((datetime.now() + timedelta(days=7)).timestamp()),
             "type": "refresh",
         }
 

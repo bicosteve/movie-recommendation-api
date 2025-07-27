@@ -1,5 +1,9 @@
 from django.db import connection, transaction, IntegrityError, DatabaseError
 
+from accounts.utils.logs import Logger
+
+logger = Logger()
+
 
 class UserRepository:
     def __init__(self):
@@ -84,10 +88,14 @@ class UserRepository:
             with transaction.atomic():
                 self.cursor.execute(delete_q, [user_id])
                 self.cursor.execute(insert_q, [user_id, token, expires])
+                logger.log_info(f"refresh token for {user_id} inserted")
             return True
         except IntegrityError as e:
-            return str(e)
+            logger.log_error(str(e))
+            raise IntegrityError(f"Insert failed because of {e}")
         except DatabaseError as e:
-            return str(e)
+            logger.log_error(str(e))
+            raise DatabaseError(f"Insert failed because of {e}")
         except Exception as e:
-            return str(e)
+            logger.log_error(str(e))
+            raise Exception(str(e))

@@ -16,8 +16,10 @@ from accounts.models import CustomUser
 from accounts.utils.utils import Utils
 from accounts.utils.auth import JWTAuthentication
 from accounts.services.user import UserService
+from accounts.utils.logs import Logger
 
 service = UserService()
+logger = Logger()
 
 
 class RegisterView(APIView):
@@ -179,41 +181,51 @@ class LoginView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return Response({"token": access_tkn}, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "access_tkn": access_tkn,
+                "refresh_tkn": refresh_tkn,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class RefreshTokenView(APIView):
     def post(self, request):
-        refresh_token = request.data.get("refresh")
+        token = request.data.get("refresh_tkn")
+
+        if not token:
+            return Response({"err": "missing refresh token"}, status=400)
 
         try:
             payload = jwt.decode(
-                refresh_token, settings.SECRET_KEY, algorithms=["HS256"]
+                token,
+                settings.SECRET_KEY,
+                algorithms=["HS256"],
             )
+
             if payload.get("type") != "refresh":
-                raise jwt.InvalidTokenError()
+                return Response({"err": jwt.InvalidTokenError()}, status=400)
+
+            user_id = payload.get("user_id")
+            email = payload.get("email")
+            username = payload.get("username")
+
+            # Generate get refresh token
+            refresh_token = service.refresh_tkn(user_id)
+
+            return Response(
+                {
+                    "access_tkn": access_tkn,
+                    "refresh_tkn": refresh_token,
+                },
+                status=200,
+            )
+
         except jwt.ExpiredSignatureError:
             return Response({"error": "Refresh token expired"}, status=403)
         except jwt.InvalidTokenError:
             return Response({"error": "Invalid refresh token"}, status=403)
-
-        user_id = payload.get("user_id")
-        email = payload.get("email")
-
-        # Check the token exists on refresh_token table
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT token FROM refresh_tokens WHERE user_id = %s", [user_id]
-            )
-            result = cursor.fetchone()
-
-            if not result or result[0] != refresh_token:
-                return Response({"error": "Invalid refresh token"}, status=403)
-
-        new_access_token, _ = Utils.generate_tokens(user_id, email)
-
-        return Response({"access": new_access_token})
 
 
 class LogoutView(APIView):

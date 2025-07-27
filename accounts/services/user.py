@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 import jwt
@@ -5,6 +7,9 @@ import jwt
 from accounts.repositories.user import UserRepository
 from accounts.utils.utils import Utils
 from accounts.utils.auth import JWTAuthentication
+from accounts.utils.logs import Logger
+
+logger = Logger()
 
 
 class UserService:
@@ -63,10 +68,12 @@ class UserService:
             if payload.get("type") != "refresh":
                 raise jwt.InvalidTokenError()
             user_id = payload.get("user_id")
-            exp = payload.get("exp")
+            exp = datetime.fromtimestamp(payload.get("exp"))
         except jwt.ExpiredSignatureError:
+            logger.log_error(jwt.ExpiredSignatureError)
             raise jwt.ExpiredSignatureError
         except jwt.InvalidTokenError:
+            logger.log_error(jwt.InvalidTokenError)
             raise jwt.InvalidTokenError
 
         return self.user_repo.insert_refresh_token(user_id, token, exp)
