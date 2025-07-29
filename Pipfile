@@ -8,6 +8,11 @@ django = "*"
 djangorestframework = "*"
 requests = "*"
 pyjwt = "*"
+gunicorn = "*"
+psycopg2-binary = "*"
+drf-yasg = "*"
+redis = "*"
+django-environ = "*"
 
 [dev-packages]
 

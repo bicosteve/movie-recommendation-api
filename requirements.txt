@@ -2,3 +2,8 @@ Django
 djangorestframework
 requests
 PyJWT
+gunicorn
+psycopg2-binary
+drf-yasg
+redis
+django-environ
