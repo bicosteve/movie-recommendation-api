@@ -7,3 +7,5 @@ psycopg2-binary
 drf-yasg
 redis
 django-environ
+celery
+django-celery-beat
