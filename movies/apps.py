@@ -1,12 +1,4 @@
-import json
-import sys
-
-
 from django.apps import AppConfig
-from django.db.models.signals import post_migrate
-
-
-from django_celery_beat.models import PeriodicTask, IntervalSchedule
 
 
 class MoviesConfig(AppConfig):
@@ -14,11 +6,17 @@ class MoviesConfig(AppConfig):
     name = "movies"
 
     def ready(self):
+        import json
+        import sys
+        from django.db.models.signals import post_migrate
+
         if "test" in sys.argv:
             return
 
         # Avoid duplicate inserts
         def setup_periodic_task(sender, **kwargs):
+            from django_celery_beat.models import PeriodicTask, IntervalSchedule
+
             # create task if it does not exist
             if not PeriodicTask.objects.filter(name="fetch_movies_task").exists():
                 schedule, _ = IntervalSchedule.objects.get_or_create(
