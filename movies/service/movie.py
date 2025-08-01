@@ -6,7 +6,14 @@ class MovieService:
         self.movie_repo = MovieRepository()
 
     def insert_movies(self, movies):
-        is_added = self.movie_repo.add_movies(movies)
-        if not is_added:
-            return False
-        return True
+        results = self.movie_repo.add_movies(movies)
+        total = len(results)
+        successes = [r for r in results if r["status"] == "success"]
+        failures = [r for r in results if r["status"] == "failed"]
+        return {
+            "total": total,
+            "inserted": len(successes),
+            "failed": len(failures),
+            "successes": successes,
+            "failures": failures,
+        }
