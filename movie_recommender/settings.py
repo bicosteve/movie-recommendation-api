@@ -45,8 +45,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "accounts",
     "rest_framework",
+    "accounts",
+    "recommender",
+    "movies",
 ]
 
 MIDDLEWARE = [
@@ -134,3 +136,12 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+INSTALLED_APPS += [
+    "django_celery_beat",
+]
+
+# Celery settings
+CELERY_BROKER_URL = env("REDIS_URL")
+CELERY_RESULT_BACKEND = env("REDIS_URL")
