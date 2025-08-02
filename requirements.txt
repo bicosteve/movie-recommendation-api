@@ -9,3 +9,5 @@ redis
 django-environ
 celery
 django-celery-beat
+pandas 
+scikit-surprise
