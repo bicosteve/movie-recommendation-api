@@ -21,5 +21,5 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/user/", include("accounts.api.urls")),
-    path("api/movie/', nclude('recommender.api.urls'))
+    path("api/movie/", include("recommender.api.urls")),
 ]
