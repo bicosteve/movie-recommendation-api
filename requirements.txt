@@ -9,3 +9,6 @@ redis
 django-environ
 celery
 django-celery-beat
+pandas 
+scikit-surprise==1.1.0
+numpy==1.24.*
