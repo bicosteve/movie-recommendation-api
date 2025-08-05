@@ -1,7 +1,5 @@
 from django.conf import settings
-from django.db import connection
-
-
+from django.contrib.auth import get_user_model
 from rest_framework import authentication, exceptions
 import jwt
 
@@ -32,11 +30,19 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
         user_id = payload.get("user_id")
         email = payload.get("email")
-        username = payload.get("username")
 
-        user = user_service.get_user(user_id, email)
+        print({"user_id": user_id, "email": email})
+
+        User = get_user_model()
+
+        try:
+            user = User.objects.get(id=user_id, email=email)
+        except User.DoesNotExist:
+            raise exceptions.AuthenticationFailed("User not found")
+
+        # user = user_service.get_user(user_id, email)
 
         if not user:
             raise exceptions.AuthenticationFailed("User not found")
 
-        return ({"user": user}, None)
+        return (user, None)

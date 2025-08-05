@@ -7,10 +7,12 @@ from .serializers import RatingSerializer
 from recommender.services.rating import RatingService
 from recommender.repositories.rating import RatingRepository
 from recommender.models_.recommender_model import RecommederModel
+from accounts.utils.auth import JWTAuthentication
 
 
 # Create your views here.
 class RecommendationMovieView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -29,6 +31,7 @@ class RecommendationMovieView(APIView):
 
 
 class RateMovieView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

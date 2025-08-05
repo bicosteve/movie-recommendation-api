@@ -51,6 +51,17 @@ INSTALLED_APPS = [
     "movies",
 ]
 
+# REST_FRAMEWORK = {
+#     "DEFAULT_AUTHENTICATION_CLASSES": (
+#         "rest_framework_simplejwt.authentication.JWTAuthentication",
+#     ),
+# }
+
+SECRET_KEY = "mysupersecret"
+ACCESS_TOKEN_LIFETIME = 40
+REFRESH_TOKEN_LIFETIME = 7
+
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

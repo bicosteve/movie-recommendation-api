@@ -1,9 +1,6 @@
-from django.shortcuts import render
-from django.db import connection, IntegrityError
 from django.conf import settings
-from django.contrib.auth.hashers import make_password, check_password
 
-
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -58,16 +55,11 @@ class RegisterView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        user = {}
-        user["user_id"] = user_id
-        user["username"] = username
-        user["email"] = email
+        utils = Utils()
 
-        utils = Utils(user)
+        token = utils.generate_verification_token(user_id, email, username)
 
-        token = utils.generate_verification_token()
-
-        # token_sent = utils.send_verification_mail(token)
+        # token_sent = utils.send_verification_mail(email, username, token)
 
         return Response(
             {
@@ -78,7 +70,7 @@ class RegisterView(APIView):
         )
 
 
-class VerifyEmailView(APIView):
+class VerifyAccountView(APIView):
     def get(self, request):
         token = request.query_params.get("token")
         if not token:
@@ -157,21 +149,17 @@ class LoginView(APIView):
                 {"msg": "Not verified user"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 3. Login user
+        # 3. Login user by creating session
+        result = service.create_session(email, password)
 
-        access_tkn, refresh_tkn = service.create_session(email, password)
-
-        if access_tkn == "":
+        if "error" in result:
             return Response(
-                {"msg": "ACCESS_TKN:an error occured while login in"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"msg": result["error"]},
+                status=result["status"],
             )
 
-        if refresh_tkn == "":
-            return Response(
-                {"msg": "REFRESH_TKN:an error occured while login in"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        access_tkn = result["access_token"]
+        refresh_tkn = result["refresh_token"]
 
         # 4. Save refresh token
         is_added = service.save_refresh_tkn(refresh_tkn)
@@ -192,23 +180,29 @@ class LoginView(APIView):
 
 class RefreshTokenView(APIView):
     def post(self, request):
-        token = request.data.get("refresh_tkn")
+        token = request.data.get("refresh_token")
 
         if not token:
-            return Response({"err": "missing refresh token"}, status=400)
+            return Response({"err": "Missing refresh token"}, status=400)
 
         try:
-            payload = jwt.decode(
-                token,
-                settings.SECRET_KEY,
-                algorithms=["HS256"],
-            )
 
-            if payload.get("type") != "refresh":
-                return Response({"err": jwt.InvalidTokenError()}, status=400)
+            refresh = RefreshToken(token)
 
-            user_id = payload.get("user_id")
-            email = payload.get("email")
+            user_id = refresh.get("user_id")
+            email = refresh.get("email")
+
+            # payload = jwt.decode(
+            #     token,
+            #     settings.SECRET_KEY,
+            #     algorithms=["HS256"],
+            # )
+
+            # user_id = payload.get("user_id")
+            # email = payload.get("email")
+
+            if not user_id or not email:
+                return Response({"error": "Malformed token payload"}, status=400)
 
             # Generate get refresh token
             access_tkn, refresh_tkn = service.regenerate_access_token(user_id, email)
@@ -218,13 +212,11 @@ class RefreshTokenView(APIView):
                     "access_tkn": access_tkn,
                     "refresh_tkn": refresh_tkn,
                 },
-                status=200,
+                status=201,
             )
 
-        except jwt.ExpiredSignatureError:
-            return Response({"error": "Refresh token expired"}, status=403)
-        except jwt.InvalidTokenError:
-            return Response({"error": "Invalid refresh token"}, status=403)
+        except TokenError:
+            return Response({"error": str(e)}, status=403)
 
 
 class LogoutView(APIView):
@@ -233,8 +225,11 @@ class LogoutView(APIView):
 
     def post(self, request):
         user = request.user
-        user_id = user["id"]
 
+        if not hasattr(user, "id"):
+            return Response({"error": "Invalid user"}, status=400)
+
+        user_id = user.id
         service.logout(user_id)
 
         return Response({"msg": "Logged out successfully"}, status=200)
