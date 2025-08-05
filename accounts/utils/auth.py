@@ -6,6 +6,7 @@ import jwt
 from accounts.services.user import UserService
 
 user_service = UserService()
+User = get_user_model()
 
 
 class JWTAuthentication(authentication.BaseAuthentication):
@@ -20,29 +21,19 @@ class JWTAuthentication(authentication.BaseAuthentication):
         try:
             payload = jwt.decode(
                 token,
-                settings.SECRET_KEY,
-                algorithms=["HS256"],
+                settings.JWT_SECRET,
+                algorithms=[settings.JWT_ALGORITHM],
             )
+
+            user = User.objects.get(
+                id=payload["user_id"],
+                username=payload["username"],
+                email=payload["email"],
+            )
+            return (user, None)
         except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed("Token expired")
         except jwt.InvalidTokenError:
             raise exceptions.AuthenticationFailed("Invalid token")
-
-        user_id = payload.get("user_id")
-        email = payload.get("email")
-
-        print({"user_id": user_id, "email": email})
-
-        User = get_user_model()
-
-        try:
-            user = User.objects.get(id=user_id, email=email)
         except User.DoesNotExist:
             raise exceptions.AuthenticationFailed("User not found")
-
-        # user = user_service.get_user(user_id, email)
-
-        if not user:
-            raise exceptions.AuthenticationFailed("User not found")
-
-        return (user, None)
