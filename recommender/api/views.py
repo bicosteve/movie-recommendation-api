@@ -50,4 +50,4 @@ class RateMovieView(APIView):
 
         service.rate_movie(user_id, movie_id, rating)
 
-        return Response({"msg": "Rating returned"}, status=201)
+        return Response({"msg": "Rating created!"}, status=201)

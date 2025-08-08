@@ -43,6 +43,6 @@ class RatingRepository:
             "movie_id", flat=True
         )
         unrated_movies = Movie.objects.exclude(tmdb_id__in=rated_movies_id).values(
-            "tmdb_id", "title", "description", "release_date"
+            "tmdb_id", "title", "overview", "release_date", "created"
         )
         return list(unrated_movies)

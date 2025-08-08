@@ -45,7 +45,7 @@ class RatingService:
         recommendations = []
 
         for movie in unrated_movies:
-            movie_id = movie["imdb_id"]
+            movie_id = movie["tmdb_id"]
             score = self.model.predict(user_id, movie_id)
             movie["score"] = score
             recommendations.append(movie)
