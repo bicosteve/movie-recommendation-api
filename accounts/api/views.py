@@ -1,20 +1,12 @@
-from django.shortcuts import render
-from django.db import connection, IntegrityError
-from django.conf import settings
-from django.contrib.auth.hashers import make_password, check_password
-
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-import jwt
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
-
-from .serializers import RegisterSerializer, LoginSerializer
-from accounts.models import CustomUser
-from accounts.utils.utils import Utils
-from accounts.utils.auth import JWTAuthentication
+from .serializers import LoginSerializer
 from accounts.services.user import UserService
 from accounts.utils.logs import Logger
 
@@ -22,119 +14,27 @@ service = UserService()
 logger = Logger()
 
 
-class RegisterView(APIView):
-    def post(self, request):
-        """Used to validate the incoming data"""
-
-        serializer = RegisterSerializer(data=request.data)
-
-        if not serializer.is_valid():
-            return Response(
-                {"msg": serializer.errors}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        email = serializer.validated_data["email"]
-        username = serializer.validated_data["username"]
-        password = serializer.validated_data["password"]
-
-        is_registered = service.get_by_mail(email)
-
-        if is_registered:
-            return Response(
-                {"errr": "Email already taken"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        is_available = service.get_by_username(username)
-        if is_available:
-            return Response(
-                {"errr": "Username already taken"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user_id = service.register_user(username, email, password)
-        if user_id < 1:
-            return Response(
-                {"msg": "Something went wrong"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        user = {}
-        user["user_id"] = user_id
-        user["username"] = username
-        user["email"] = email
-
-        utils = Utils(user)
-
-        token = utils.generate_verification_token()
-
-        # token_sent = utils.send_verification_mail(token)
-
-        return Response(
-            {
-                "msg": "Registeration success",
-                "verification_tkn": token,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class VerifyEmailView(APIView):
-    def get(self, request):
-        token = request.query_params.get("token")
-        if not token:
-            return Response(
-                {"err": "verification token is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            if payload.get("type") != "account_verification":
-                return Response(
-                    {"error": "Invalid token type"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            email = payload.get("email")
-            user_id = payload.get("user_id")
-
-            is_verified = service.check_verified(email)
-
-            # 1. Check if account is verified
-            if is_verified == 1:
-                return Response(
-                    {"msg": "account is already verified"},
-                    status=status.HTTP_200_OK,
-                )
-
-            # 2. Update the status of the user
-            verified = service.verify(user_id)
-            if verified != 1:
-                return Response(
-                    {"msg": "User not verified"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-            if verified == 1:
-                return Response(
-                    {"msg": "Account successfully verified"},
-                    status=status.HTTP_200_OK,
-                )
-
-        except jwt.ExpiredSignatureError:
-            return Response(
-                {"msg": "Verification link expired"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        except jwt.DecodeError:
-            return Response(
-                {"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        except CustomUser.DoesNotExist:
-            return Response({"err": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
 class LoginView(APIView):
     """API view for login"""
 
+    @swagger_auto_schema(
+        operation_description="Authenticate a user and return JWT access and refresh tokens.",
+        request_body=LoginSerializer,
+        responses={
+            200: openapi.Response(
+                description="Login successful",
+                examples={
+                    "application/json": {
+                        "access_tkn": "your.jwt.access.token",
+                        "refresh_tkn": "your.jwt.refresh.token",
+                    }
+                },
+            ),
+            400: openapi.Response(description="User not verified or bad request"),
+            404: openapi.Response(description="User not found"),
+            500: openapi.Response(description="Server error during login"),
+        },
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -190,47 +90,23 @@ class LoginView(APIView):
         )
 
 
-class RefreshTokenView(APIView):
-    def post(self, request):
-        token = request.data.get("refresh_tkn")
-
-        if not token:
-            return Response({"err": "missing refresh token"}, status=400)
-
-        try:
-            payload = jwt.decode(
-                token,
-                settings.SECRET_KEY,
-                algorithms=["HS256"],
-            )
-
-            if payload.get("type") != "refresh":
-                return Response({"err": jwt.InvalidTokenError()}, status=400)
-
-            user_id = payload.get("user_id")
-            email = payload.get("email")
-
-            # Generate get refresh token
-            access_tkn, refresh_tkn = service.regenerate_access_token(user_id, email)
-
-            return Response(
-                {
-                    "access_tkn": access_tkn,
-                    "refresh_tkn": refresh_tkn,
-                },
-                status=200,
-            )
-
-        except jwt.ExpiredSignatureError:
-            return Response({"error": "Refresh token expired"}, status=403)
-        except jwt.InvalidTokenError:
-            return Response({"error": "Invalid refresh token"}, status=403)
-
-
 class LogoutView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_description="Logs out the authenticated user by invalidating the refresh token.",
+        responses={
+            200: openapi.Response(
+                description="Logout successful",
+                examples={"application/json": {"msg": "Logged out successfully"}},
+            ),
+            401: openapi.Response(
+                description="Authentication credentials were not provided or invalid"
+            ),
+        },
+        security=[{"Bearer": []}],
+    )
     def post(self, request):
         user = request.user
         user_id = user["id"]

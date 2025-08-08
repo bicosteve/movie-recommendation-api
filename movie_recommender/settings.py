@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "accounts",
     "recommender",
     "movies",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
