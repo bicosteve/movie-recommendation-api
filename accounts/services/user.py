@@ -17,13 +17,13 @@ class UserService:
 
     def get_by_mail(self, email) -> bool:
         user = self.user_repo.get_user_by_email(email)
-        if not user[0]:
+        if user is None or not user[0]:
             return False
         return True
 
     def get_by_username(self, username) -> bool:
         user = self.user_repo.get_user_by_username(username)
-        if not user[0]:
+        if user is None or not user[0]:
             return False
         return True
 
@@ -48,23 +48,26 @@ class UserService:
 
     def create_session(self, email, password):
         user = self.user_repo.login_user(email)
-        if not user:
-            return ""
-        id, username, email, is_verified, hashed_password = user
+        if user is None:
+            return {"error": "User not found", "status": 404}
+
+        user_id = user["id"]
+        user_email = user["email"]
+        hashed_password = user["hashed_password"]
 
         if not check_password(password, hashed_password):
-            return ""
+            return {"error": "Email and password do not match", "status": 401}
 
-        utils = Utils(user)
+        utils = Utils()
 
-        access_tkn, refresh_tkn = utils.generate_tokens(id, email)
+        access_tkn, refresh_tkn = utils.generate_tokens(user_id, user_email)
 
-        return access_tkn, refresh_tkn
+        return {"access_token": access_tkn, "refresh_token": refresh_tkn}
 
     def save_refresh_tkn(self, token):
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            if payload.get("type") != "refresh":
+            if payload.get("type") != "refresh_token":
                 raise jwt.InvalidTokenError()
             user_id = payload.get("user_id")
             exp = datetime.fromtimestamp(payload.get("exp"))
@@ -82,8 +85,8 @@ class UserService:
         return refresh_tkn
 
     def regenerate_access_token(self, user_id, email):
-        user = self.user_repo.login_user(email)
-        utils = Utils(user)
+        # user = self.user_repo.login_user(email)
+        utils = Utils()
         access_tkn, refresh_tkn = utils.generate_tokens(user_id, email)
         self.save_refresh_tkn(refresh_tkn)
         return access_tkn, refresh_tkn

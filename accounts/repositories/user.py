@@ -45,11 +45,18 @@ class UserRepository:
         INSERT INTO users (username,email,hashed_password) 
         VALUES (%s,%s,%s) RETURNING id;
         """
-        self.cursor.execute(q, [username, email, password])
 
-        user_id = self.cursor.fetchone()[0]
+        try:
+            self.cursor.execute(q, [username, email, password])
+            user_id = self.cursor.fetchone()[0]
 
-        return user_id
+            if user_id is None:
+                raise Exception("User creation failed, no ID returned.")
+
+            return user_id[0]
+        except Exception as e:
+            print(f"error creating user: {str(e)}")
+            return None
 
     def login_user(self, email):
         q = """
@@ -57,12 +64,22 @@ class UserRepository:
             FROM users WHERE email = %s
         """
 
-        self.cursor.execute(q, [email])
-        user = self.cursor.fetchone()
+        try:
+            self.cursor.execute(q, [email])
+            user = self.cursor.fetchone()
 
-        if not user:
+            if user is None or not user:
+                return None
+            return {
+                "id": user[0],
+                "username": user[1],
+                "email": user[2],
+                "is_verified": user[3],
+                "hashed_password": user[4],
+            }
+        except Exception as e:
+            print(f"Error login in user {str(e)}")
             return None
-        return user
 
     def get_refresh_token(self, user_id):
         q = """
