@@ -44,18 +44,4 @@ vine==5.1.0
 wcwidth==0.2.13
 
 
-# Django
-# djangorestframework
-# requests
-# PyJWT
-# gunicorn
-# psycopg2-binary
-# drf-yasg
-# redis
-# django-environ
-# celery
-# django-celery-beat
-# pandas 
-# djangorestframework-simplejwt
-# scikit-surprise==1.1.0
-# numpy==1.24.*
+
