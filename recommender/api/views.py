@@ -1,9 +1,11 @@
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers
+
 
 from .serializers import RatingSerializer, RecommendationSerializer
 from recommender.services.rating import RatingService
@@ -87,13 +89,23 @@ class RecommendationMovieView(APIView):
             ]
         """
         user_id = request.user.id
+        cache_key = f"recommended_movies:{user_id}"
+        movies = cache.get(cache_key)
 
-        service = RatingService(
-            repository=RatingRepository(),
-            model=RecommederModel(),
-        )
+        if movies is None:
+            print("Fetching movies from db...!")
 
-        recommendations = service.get_recommendation(user_id)
+            service = RatingService(
+                repository=RatingRepository(),
+                model=RecommederModel(),
+            )
+
+            recommendations = service.get_recommendation(user_id)
+
+            cache.set(cache_key, recommendations, timeout=3600)
+
+        else:
+            recommendations = movies
 
         serializer = RecommendationSerializer(recommendations, many=True)
 

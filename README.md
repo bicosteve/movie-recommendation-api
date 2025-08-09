@@ -1,64 +1,123 @@
-# Movie Recommendation Backend
+# 🎬 Movie Recommendation Backend
 
-## Real-World Application
+## 🚀 Real-World Application
 
-This backend system replicates real-world engineering scenarios where performance, security, and API clarity are paramount. By completing this project, I have gained proficiency in:
+This backend project simulates real-world development scenarios where **performance**, **security**, and **user-centric design** are paramount.
+It offers hands-on experience with:
 
-- Building and documenting scalable APIs
-- Implementing Redis-based caching strategies
-- Designing secure authentication workflows
+- API development and third-party integration
+- High-performance caching strategies
+- Comprehensive API documentation for seamless frontend collaboration
 
 ---
 
 ## Overview
 
-This Django-powered backend serves a movie recommendation platform, offering APIs for:
+This case study centers on building a **robust backend** for a movie recommendation application. It provides RESTful APIs for:
 
-- Trending and recommended movie retrieval
-- User authentication (JWT)
-- Saving favorite movie preferences
+- Fetching trending and recommended movies
+- Authenticating users securely
+- Saving and retrieving user preferences
 
-It prioritizes performance optimization through caching and follows documentation best practices via Swagger.
+The system is optimized for performance and includes detailed documentation to support frontend integration.
 
 ---
 
 ## Project Goals
 
-- **API Development**: Provide endpoints for movie listing and user actions
-- **Authentication**: Implement JWT authentication and user preference saving
-- **Performance**: Leverage Redis to cache frequent movie queries
+- **API Creation**  
+  Develop endpoints to serve trending and recommended movies using external APIs.
+
+- **User Management**  
+  Implement secure JWT-based authentication and allow users to save favorite movies.
+
+- **Performance Optimization**  
+  Use Redis caching to reduce latency and minimize external API calls.
 
 ---
 
 ## Technologies Used
 
-| Technology | Purpose                          |
-| ---------- | -------------------------------- |
-| Django     | Core backend framework           |
-| PostgreSQL | Persistent relational datastore  |
-| Redis      | Caching for trending/recommended |
-| Swagger    | API documentation interface      |
+| Technology | Purpose                       |
+| ---------- | ----------------------------- |
+| Django     | Backend framework             |
+| PostgreSQL | Relational database           |
+| Redis      | Caching layer for performance |
+| Swagger    | API documentation             |
 
 ---
 
 ## Key Features
 
-### Movie API Integration
+### Movie Recommendation API
 
-- Connects to TMDb for trending and recommended movies
-- Implements error resilience with retry strategies and fallbacks
+- Integrates with third-party movie APIs (e.g., TMDb)
+- Serves trending and personalized recommendations
+- Includes robust error handling for external API failures
 
 ### User Authentication & Preferences
 
-- JWT-based login/signup
-- Users can save and retrieve favorite movies
+- JWT-based authentication for secure access
+- Models for saving and retrieving user favorites
 
 ### Performance Optimization
 
-- Redis cache for movie data (e.g., `/api/movies/trending`)
-- Reduces third-party API load and improves response latency
+- Redis caching for trending and recommended movies
+- Reduces redundant API calls and improves response time
 
-### Comprehensive API Docs
+### Comprehensive Documentation
 
-- Swagger integrated via `drf-yasg`
-- Live docs hosted at: `/api/docs`
+- Swagger-powered API docs hosted at `/api/docs`
+- Facilitates smooth frontend integration and testing
+
+---
+
+## Implementation Process
+
+1. **Project Setup**
+
+   - Initialize Django project and configure PostgreSQL and Redis
+   - Set up environment variables for third-party API keys
+
+2. **API Development**
+
+   - Create endpoints for trending and recommended movies
+   - Integrate TMDb (or similar) API with error handling
+
+3. **Authentication & User Models**
+
+   - Implement JWT authentication
+   - Create models for user preferences and favorites
+
+4. **Caching Strategy**
+
+   - Use Redis to cache movie data
+   - Set expiration policies to balance freshness and performance
+
+5. **Documentation**
+   - Annotate views and serializers with Swagger decorators
+   - Host interactive API docs at `/api/docs`
+
+---
+
+---
+
+## Running the Project
+
+```bash
+# Clone the repo
+git clone git@github.com:bicosteve/movie-recommendation-api.git
+cd movie-recommendation-api
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run migrations
+python manage.py migrate
+
+# Start the server
+python manage.py runserver
+```
