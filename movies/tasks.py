@@ -16,7 +16,6 @@ tmdb_url = os.getenv("TMDB_URL")
 
 @shared_task
 def fetch_and_store_movies():
-
     if not tmdb_key or not tmdb_url:
         logger.error("TMDB credentials or URL missing from environment.")
         return
@@ -44,21 +43,21 @@ def fetch_and_store_movies():
             response.raise_for_status()
             movies = response.json().get("results", [])
 
-            if not movies:
-                logger.info(f"No movies found on page {page}")
-                continue
-            all_movies.append(movies)
+            if movies:
+                all_movies.extend(movies)
+            else:
+                logger.info(f"No movies found on the page {page}")
         except Exception as e:
             logger.exception(f"Unexpected error on page {page}: {str(e)}")
             return
 
     if not all_movies:
-        logger.warning("No movies fetched from TMD on all pages")
+        logger.warning("No movies fetched form TMDB on all pages")
         return
 
-    result = movie_service.insert_movies(all_movies)
-
+    service = MovieService()
+    result = service.insert_movies(all_movies)
     if result["failed"] > 0:
-        print(f"[WARN]: {result['failed']} movie(s) failed to insert")
+        logger.warning(f"{result['failed']} movie(s) failed to insert")
     else:
-        print(f"[INFO]: All {result['inserted']} movies inserted successfully.")
+        logger.info(f"All {result['inserted']} movies inserted successfully")

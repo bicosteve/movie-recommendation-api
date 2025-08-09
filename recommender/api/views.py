@@ -2,10 +2,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .serializers import RatingSerializer
+from .serializers import RatingSerializer, RecommendationSerializer
 from recommender.services.rating import RatingService
 from recommender.repositories.rating import RatingRepository
 from recommender.models_.recommender_model import RecommederModel
@@ -56,6 +57,7 @@ class RecommendationMovieView(APIView):
     API view that returns recommended movies for the authenticated user.
     """
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
@@ -76,14 +78,14 @@ class RecommendationMovieView(APIView):
     def get(self, request):
         user_id = request.user.id
 
-        repo = RatingRepository()
-        model = RecommederModel()
-
-        service = RatingService(repo, model)
+        service = RatingService(
+            repository=RatingRepository(),
+            model=RecommederModel(),
+        )
 
         recommendations = service.get_recommendation(user_id)
 
-        serializer = RatingSerializer(recommendations, many=True)
+        serializer = RecommendationSerializer(recommendations, many=True)
 
         return Response(serializer.data)
 
@@ -93,6 +95,7 @@ class RateMovieView(APIView):
     API view to allow authenticated users to rate a movie.
     """
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
@@ -162,10 +165,11 @@ class RateMovieView(APIView):
         movie_id = serializer.validated_data["movie_id"]
         rating = serializer.validated_data["rating"]
 
-        repo = RatingRepository()
-        model = RecommederModel()
-        service = RatingService(repo, model)
+        service = RatingService(
+            repository=RatingRepository(),
+            model=RecommederModel(),
+        )
 
         service.rate_movie(user_id, movie_id, rating)
 
-        return Response({"msg": "Rating returned"}, status=201)
+        return Response({"msg": "Rating created!"}, status=201)

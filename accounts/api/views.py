@@ -68,8 +68,11 @@ class LogoutView(APIView):
     )
     def post(self, request):
         user = request.user
-        user_id = user["id"]
 
+        if not hasattr(user, "id"):
+            return Response({"error": "Invalid user"}, status=400)
+
+        user_id = user.id
         service.logout(user_id)
 
         return Response({"msg": "Logged out successfully"}, status=200)

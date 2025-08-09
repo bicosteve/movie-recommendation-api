@@ -1,16 +1,13 @@
 import os
-
-
-from django.db import connection, transaction, IntegrityError, DatabaseError
+from django.db import IntegrityError, DatabaseError
+from movies.models import Movie
 
 
 class MovieRepository:
-    def __init__(self):
-        self.cursor = connection.cursor()
-        self.base_poster_url = os.getenv("TMDB_BASE_IMG_URL")
+    def __init__(self, base_poster_url):
+        self.base_poster_url = base_poster_url
 
-    def add_movies(self, movies):
-        results = []
+    def add_movie(self, movies):
         for movie in movies:
             try:
                 tmdb_id = movie["id"]
@@ -18,39 +15,31 @@ class MovieRepository:
                 overview = movie.get("overview", "")
                 genres = ",".join(str(gid) for gid in movie.get("genre_ids", []))
                 release_date = movie.get("first_air_date")
-                poster_url = f'{self.base_poster_url}{movie.get("poster_path",'')}'
-
-                if len(genres) < 1:
-                    genres = tmdb_id
-
-                if len(overview) < 1:
-                    overview = title
-
-                q = """
-                    INSERT INTO movies (tmdb_id,title,overview,genres,release_date,poster_url)
-                    VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;
-                """
-
-                self.cursor.execute(
-                    q, [tmdb_id, title, overview, genres, release_date, poster_url]
+                poster_path = movie.get("poster_path", "")
+                poster_url = (
+                    f"{self.base_poster_url}{poster_path}" if poster_path else ""
                 )
-                results.append(
-                    {
-                        "id": tmdb_id,
+
+                object, created = Movie.objects.get_or_create(
+                    tmdb_id=tmdb_id,
+                    defaults={
                         "title": title,
-                        "status": "success",
-                    }
+                        "overview": overview,
+                        "genres": genres,
+                        "release_date": release_date,
+                        "poster_url": poster_url,
+                    },
                 )
-            except Exception as e:
-                print(
-                    f"[ERROR] Failed to insert movie `{movie.get('title','UNKNOWN')}`, `ID->{movie.get('id','N/A')}` because of {e}"
-                )
-                results.append(
-                    {
-                        "id": movie.get("id", "N/A"),
-                        "title": movie.get("title", "UNKNOWN"),
-                        "status": "failed",
-                        "error": str(e),
-                    }
-                )
-        return results
+
+                return {
+                    "id": tmdb_id,
+                    "title": title,
+                    "status": "created" if created else "exists",
+                }
+            except IntegrityError as e:
+                return {
+                    "id": tmdb_id,
+                    "title": title,
+                    "status": "failed",
+                    "error": str(e),
+                }
