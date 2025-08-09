@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "recommender",
     "movies",
     "rest_framework_simplejwt",
+    "drf_spectacular",
 ]
 
 REST_FRAMEWORK = {
@@ -58,11 +59,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# SECRET_KEY = "mysupersecret"
-# ACCESS_TOKEN_LIFETIME = 40
-# REFRESH_TOKEN_LIFETIME = 7
 
 JWT_SECRET = "your-secret-key"  # use env var in production
 JWT_ALGORITHM = "HS256"
@@ -165,3 +164,25 @@ INSTALLED_APPS += [
 # Celery settings
 CELERY_BROKER_URL = env("REDIS_URL")
 CELERY_RESULT_BACKEND = env("REDIS_URL")
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Movie Recommender API",
+    "DESCRIPTION": "API for recommending movies with JWT authentication.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    # Auto Bearer token button
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+    },
+    "SECURITY": [{"BearerAuth": []}],
+    "COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
+}
