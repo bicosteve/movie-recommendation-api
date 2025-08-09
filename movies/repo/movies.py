@@ -1,7 +1,5 @@
 import os
-
-
-from django.db import connection, transaction, IntegrityError, DatabaseError
+from django.db import IntegrityError, DatabaseError
 from movies.models import Movie
 
 
