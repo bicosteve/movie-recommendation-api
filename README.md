@@ -1,6 +1,6 @@
-# 🎬 Movie Recommendation Backend
+# Movie Recommendation Backend
 
-## 🚀 Real-World Application
+## Real-World Application
 
 This backend project simulates real-world development scenarios where **performance**, **security**, and **user-centric design** are paramount.
 It offers hands-on experience with:
