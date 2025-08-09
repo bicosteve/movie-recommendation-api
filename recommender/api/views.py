@@ -11,6 +11,45 @@ from recommender.repositories.rating import RatingRepository
 from recommender.models_.recommender_model import RecommederModel
 
 
+movie_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "movie_id": openapi.Schema(
+            type=openapi.TYPE_INTEGER, description="ID of the movie"
+        ),
+        "rating": openapi.Schema(
+            type=openapi.TYPE_NUMBER, format="float", description="Predicted rating"
+        ),
+        "title": openapi.Schema(
+            type=openapi.TYPE_STRING, description="Title of the movie"
+        ),
+        "poster_url": openapi.Schema(
+            type=openapi.TYPE_STRING, description="Full URL to the poster image"
+        ),
+    },
+)
+
+# Define the response schema as a list of movies
+movies_list_schema = openapi.Schema(
+    type=openapi.TYPE_ARRAY,
+    items=movie_schema,
+    example=[
+        {
+            "movie_id": 12,
+            "rating": 4.5,
+            "title": "Inception",
+            "poster_url": "https://image.tmdb.org/t/p/w500/inception.jpg",
+        },
+        {
+            "movie_id": 42,
+            "rating": 4.2,
+            "title": "Interstellar",
+            "poster_url": "https://image.tmdb.org/t/p/w500/interstellar.jpg",
+        },
+    ],
+)
+
+
 # Create your views here.
 class RecommendationMovieView(APIView):
     """
@@ -26,23 +65,7 @@ class RecommendationMovieView(APIView):
         responses={
             200: openapi.Response(
                 description="List of recommended movies",
-                schema=RatingSerializer(many=True),
-                examples={
-                    "application/json": [
-                        {
-                            "movie_id": 12,
-                            "rating": 4.5,
-                            "title": "Inception",
-                            "poster_url": "https://image.tmdb.org/t/p/w500/inception.jpg",
-                        },
-                        {
-                            "movie_id": 42,
-                            "rating": 4.2,
-                            "title": "Interstellar",
-                            "poster_url": "https://image.tmdb.org/t/p/w500/interstellar.jpg",
-                        },
-                    ]
-                },
+                schema=movies_list_schema,
             ),
             401: openapi.Response(
                 description="Unauthorized – user must be authenticated with a valid JWT token"
@@ -76,25 +99,56 @@ class RateMovieView(APIView):
     @swagger_auto_schema(
         operation_summary="Rate a movie",
         operation_description="Allows an authenticated user to submit a rating for a specific movie.",
-        request_body=RatingSerializer,
+        request_body=RatingSerializer,  # Expected input structure
         responses={
             201: openapi.Response(
                 description="Rating submitted successfully",
+                schema=openapi.Schema(  # Explicit schema for success response
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "msg": openapi.Schema(
+                            type=openapi.TYPE_STRING, example="Rating returned"
+                        ),
+                    },
+                ),
                 examples={"application/json": {"msg": "Rating returned"}},
             ),
             400: openapi.Response(
                 description="Invalid input",
-                examples={
-                    "application/json": {
-                        "error": {
-                            "movie_id": ["This field is required."],
-                            "rating": ["Ensure this value is less than or equal to 5."],
-                        }
-                    }
-                },
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "error": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "movie_id": openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Items(type=openapi.TYPE_STRING),
+                                    example=["This field is required."],
+                                ),
+                                "rating": openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Items(type=openapi.TYPE_STRING),
+                                    example=[
+                                        "Ensure this value is less than or equal to 5."
+                                    ],
+                                ),
+                            },
+                        )
+                    },
+                ),
             ),
             401: openapi.Response(
-                description="Unauthorized – missing or invalid JWT token"
+                description="Unauthorized – missing or invalid JWT token",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "detail": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Authentication credentials were not provided.",
+                        )
+                    },
+                ),
             ),
         },
         security=[{"Bearer": []}],
